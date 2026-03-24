@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Musi | Mezcla Mágica</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="description"
+    content="Ayuda a Musi a descubrir pigmentos mágicos y reconstruir colores perdidos a través de mezclas creativas en este minijuego artístico."
+  />
+  <meta name="theme-color" content="#6c63ff" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <div class="brand-block">
+        <p class="eyebrow">Musi · Minijuego artístico</p>
+        <h1>Mezcla Mágica</h1>
+        <p class="subtitle">
+          Descubre pigmentos, combina colores y ayuda a restaurar la magia visual del mundo.
+        </p>
+      </div>
+
+      <div class="hud" aria-label="Panel de progreso del jugador">
+        <div class="hud-card">
+          <span class="hud-label">Nivel</span>
+          <strong id="levelValue">1</strong>
+        </div>
+
+        <div class="hud-card">
+          <span class="hud-label">Puntaje</span>
+          <strong id="scoreValue">0</strong>
+        </div>
+
+        <div class="hud-card">
+          <span class="hud-label">Intentos</span>
+          <strong id="attemptsValue">0</strong>
+        </div>
+      </div>
+    </header>
+
+    <main class="game-layout">
+      <section class="story-card panel" aria-labelledby="missionTitle">
+        <div class="story-copy">
+          <p class="section-kicker">Misión actual</p>
+          <h2 id="missionTitle">Reconstruye el color perdido</h2>
+          <p id="missionText">
+            Musi encontró un pigmento misterioso. Observa el color objetivo e intenta recrearlo
+            mezclando los pigmentos mágicos disponibles.
+          </p>
+        </div>
+
+        <div class="recipe-progress" aria-label="Progreso del descubrimiento">
+          <div class="recipe-badge">
+            <span class="recipe-badge-label">Recetas descubiertas</span>
+            <strong id="recipesValue">0</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="board panel" aria-labelledby="boardTitle">
+        <div class="board-header">
+          <div>
+            <p class="section-kicker">Laboratorio cromático</p>
+            <h2 id="boardTitle">Prueba tu mezcla</h2>
+          </div>
+
+          <button
+            id="newTargetBtn"
+            class="btn btn-ghost"
+            type="button"
+            aria-label="Generar un nuevo color objetivo"
+          >
+            Nuevo reto
+          </button>
+        </div>
+
+        <div class="color-stage">
+          <article class="color-card target-card" aria-labelledby="targetTitle">
+            <div class="card-head">
+              <h3 id="targetTitle">Color objetivo</h3>
+              <span class="card-tag">Referencia</span>
+            </div>
+
+            <div
+              id="targetColor"
+              class="color-box target-box"
+              role="img"
+              aria-label="Color objetivo del reto"
+            ></div>
+
+            <p class="color-caption" id="targetName">Pigmento misterioso</p>
+          </article>
+
+          <div class="mix-arrow" aria-hidden="true">
+            <span>✨</span>
+          </div>
+
+          <article class="color-card mix-card" aria-labelledby="mixTitle">
+            <div class="card-head">
+              <h3 id="mixTitle">Tu mezcla</h3>
+              <span class="card-tag">Creación</span>
+            </div>
+
+            <div
+              id="mixColor"
+              class="color-box mix-box"
+              role="img"
+              aria-label="Color mezclado por el jugador"
+            ></div>
+
+            <p class="color-caption" id="mixFormula">Sin mezcla todavía</p>
+          </article>
+        </div>
+
+        <section class="palette-section" aria-labelledby="paletteTitle">
+          <div class="section-head">
+            <h3 id="paletteTitle">Pigmentos mágicos</h3>
+            <p>Selecciona los ingredientes con los que quieres construir el color.</p>
+          </div>
+
+          <div class="palette" role="group" aria-label="Paleta de pigmentos">
+            <button
+              class="pigment-btn pigment-red"
+              type="button"
+              data-color="red"
+              aria-label="Agregar pigmento rojo"
+            >
+              <span class="pigment-dot" aria-hidden="true"></span>
+              <span class="pigment-text">
+                <strong>Rojo</strong>
+                <small>Calor y energía</small>
+              </span>
+            </button>
+
+            <button
+              class="pigment-btn pigment-blue"
+              type="button"
+              data-color="blue"
+              aria-label="Agregar pigmento azul"
+            >
+              <span class="pigment-dot" aria-hidden="true"></span>
+              <span class="pigment-text">
+                <strong>Azul</strong>
+                <small>Agua y cielo</small>
+              </span>
+            </button>
+
+            <button
+              class="pigment-btn pigment-yellow"
+              type="button"
+              data-color="yellow"
+              aria-label="Agregar pigmento amarillo"
+            >
+              <span class="pigment-dot" aria-hidden="true"></span>
+              <span class="pigment-text">
+                <strong>Amarillo</strong>
+                <small>Luz y brillo</small>
+              </span>
+            </button>
+          </div>
+        </section>
+
+        <section class="mix-tray" aria-labelledby="trayTitle">
+          <div class="section-head compact">
+            <h3 id="trayTitle">Receta actual</h3>
+            <p>Estos son los pigmentos que llevas añadidos.</p>
+          </div>
+
+          <div id="mixSlots" class="mix-slots" aria-live="polite" aria-label="Ingredientes seleccionados">
+            <div class="mix-slot empty">?</div>
+            <div class="mix-slot empty">?</div>
+            <div class="mix-slot empty">?</div>
+          </div>
+        </section>
+
+        <div class="actions">
+          <button id="clearBtn" class="btn btn-soft" type="button">
+            Limpiar mezcla
+          </button>
+
+          <button id="checkBtn" class="btn btn-primary" type="button">
+            Validar color
+          </button>
+        </div>
+
+        <div
+          id="feedback"
+          class="feedback"
+          role="status"
+          aria-live="polite"
+        >
+          Empieza mezclando pigmentos para acercarte al color objetivo.
+        </div>
+      </section>
+
+      <aside class="side-panel">
+        <section class="panel tips-panel" aria-labelledby="tipsTitle">
+          <div class="section-head">
+            <h2 id="tipsTitle">Guía rápida</h2>
+            <p>Pequeñas pistas para no mezclar a ciegas como alquimista sin desayuno.</p>
+          </div>
+
+          <ul class="tips-list">
+            <li>Observa bien el color objetivo antes de validar.</li>
+            <li>Prueba combinaciones distintas y descubre recetas nuevas.</li>
+            <li>Entre más te acerques, mejor será tu resultado.</li>
+          </ul>
+        </section>
+
+        <section class="panel discovered-panel" aria-labelledby="discoveredTitle">
+          <div class="section-head">
+            <h2 id="discoveredTitle">Recetas descubiertas</h2>
+            <p>Tus hallazgos cromáticos quedan guardados aquí.</p>
+          </div>
+
+          <div id="recipeList" class="recipe-list">
+            <div class="empty-state">
+              Aún no has descubierto ninguna receta mágica.
+            </div>
+          </div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>

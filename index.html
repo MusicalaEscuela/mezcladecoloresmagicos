@@ -2,237 +2,227 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Musi | Mezcla Mágica</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta
-    name="description"
-    content="Ayuda a Musi a descubrir pigmentos mágicos y reconstruir colores perdidos a través de mezclas creativas en este minijuego artístico."
-  />
-  <meta name="theme-color" content="#6c63ff" />
-
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap"
-    rel="stylesheet"
-  />
-
+  <title>Musi | Mezcla de Colores Mágicos</title>
+  <meta name="description" content="Minijuego educativo para aprender mezclas de colores con retos, pistas, niveles y recetas descubiertas." />
+  <meta name="theme-color" content="#7c5cff" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="page-shell">
-    <header class="topbar">
-      <div class="brand-block">
-        <p class="eyebrow">Musi · Minijuego artístico</p>
-        <h1>Mezcla Mágica</h1>
+  <div class="background-orb orb-one" aria-hidden="true"></div>
+  <div class="background-orb orb-two" aria-hidden="true"></div>
+  <div class="background-orb orb-three" aria-hidden="true"></div>
+
+  <main class="app-shell" id="app">
+    <header class="hero-card">
+      <section class="hero-copy" aria-labelledby="gameTitle">
+        <p class="eyebrow">Musi · Laboratorio artístico</p>
+        <h1 id="gameTitle">Mezcla de colores mágicos</h1>
         <p class="subtitle">
-          Descubre pigmentos, combina colores y ayuda a restaurar la magia visual del mundo.
+          Agrega gotas, observa la mezcla y descubre recetas de color. Esta versión sí se deja jugar, detalle menor que a veces se le olvida a la humanidad.
         </p>
-      </div>
 
-      <div class="hud" aria-label="Panel de progreso del jugador">
-        <div class="hud-card">
-          <span class="hud-label">Nivel</span>
-          <strong id="levelValue">1</strong>
-        </div>
-
-        <div class="hud-card">
-          <span class="hud-label">Puntaje</span>
-          <strong id="scoreValue">0</strong>
-        </div>
-
-        <div class="hud-card">
-          <span class="hud-label">Intentos</span>
-          <strong id="attemptsValue">0</strong>
-        </div>
-      </div>
-    </header>
-
-    <main class="game-layout">
-      <section class="story-card panel" aria-labelledby="missionTitle">
-        <div class="story-copy">
-          <p class="section-kicker">Misión actual</p>
-          <h2 id="missionTitle">Reconstruye el color perdido</h2>
-          <p id="missionText">
-            Musi encontró un pigmento misterioso. Observa el color objetivo e intenta recrearlo
-            mezclando los pigmentos mágicos disponibles.
-          </p>
-        </div>
-
-        <div class="recipe-progress" aria-label="Progreso del descubrimiento">
-          <div class="recipe-badge">
-            <span class="recipe-badge-label">Recetas descubiertas</span>
-            <strong id="recipesValue">0</strong>
-          </div>
+        <div class="hero-actions" aria-label="Acciones principales">
+          <button class="btn btn-primary" id="startBtn" type="button">Empezar reto</button>
+          <button class="btn btn-ghost" id="howToBtn" type="button">Cómo se juega</button>
         </div>
       </section>
 
-      <section class="board panel" aria-labelledby="boardTitle">
-        <div class="board-header">
-          <div>
-            <p class="section-kicker">Laboratorio cromático</p>
-            <h2 id="boardTitle">Prueba tu mezcla</h2>
-          </div>
+      <section class="musi-card" aria-label="Musi">
+        <div class="musi-face" aria-hidden="true">
+          <span class="musi-eye left"></span>
+          <span class="musi-eye right"></span>
+          <span class="musi-smile"></span>
+        </div>
+        <div class="musi-speech" id="musiSpeech" aria-live="polite">
+          Vamos a recuperar el color perdido. Sin drama, con gotas.
+        </div>
+      </section>
+    </header>
 
-          <button
-            id="newTargetBtn"
-            class="btn btn-ghost"
-            type="button"
-            aria-label="Generar un nuevo color objetivo"
-          >
-            Nuevo reto
-          </button>
+    <section class="stats-grid" aria-label="Progreso de la partida">
+      <article class="stat-card">
+        <span class="stat-label">Nivel</span>
+        <strong id="levelValue">1</strong>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Puntos</span>
+        <strong id="scoreValue">0</strong>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Reto</span>
+        <strong><span id="roundValue">1</span>/<span id="totalRoundsValue">10</span></strong>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Racha</span>
+        <strong id="streakValue">0</strong>
+      </article>
+    </section>
+
+    <section class="progress-card" aria-label="Progreso del mapa cromático">
+      <div class="progress-topline">
+        <span>Mapa cromático</span>
+        <span id="progressLabel">0%</span>
+      </div>
+      <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </section>
+
+    <div class="game-layout">
+      <section class="panel board-panel" aria-labelledby="boardTitle">
+        <div class="panel-header">
+          <div>
+            <p class="section-kicker">Reto actual</p>
+            <h2 id="boardTitle">Recrea el color perdido</h2>
+          </div>
+          <span class="difficulty-pill" id="difficultyLabel">Principiante</span>
         </div>
 
-        <div class="color-stage">
-          <article class="color-card target-card" aria-labelledby="targetTitle">
-            <div class="card-head">
-              <h3 id="targetTitle">Color objetivo</h3>
-              <span class="card-tag">Referencia</span>
+        <div class="challenge-grid">
+          <article class="color-card target-card">
+            <div class="card-header">
+              <h3>Color objetivo</h3>
+              <span class="mini-pill" id="targetDropsLabel">2 gotas</span>
             </div>
-
-            <div
-              id="targetColor"
-              class="color-box target-box"
-              role="img"
-              aria-label="Color objetivo del reto"
-            ></div>
-
-            <p class="color-caption" id="targetName">Pigmento misterioso</p>
+            <div class="color-bowl target-bowl" id="targetColor" role="img" aria-label="Color objetivo"></div>
+            <p class="color-name" id="targetName">Color secreto</p>
+            <p class="color-note" id="targetHint">Mira el color y prepara tu receta.</p>
           </article>
 
-          <div class="mix-arrow" aria-hidden="true">
-            <span>✨</span>
-          </div>
-
-          <article class="color-card mix-card" aria-labelledby="mixTitle">
-            <div class="card-head">
-              <h3 id="mixTitle">Tu mezcla</h3>
-              <span class="card-tag">Creación</span>
+          <article class="color-card mix-card">
+            <div class="card-header">
+              <h3>Tu mezcla</h3>
+              <span class="mini-pill" id="currentDropsLabel">0 gotas</span>
             </div>
-
-            <div
-              id="mixColor"
-              class="color-box mix-box"
-              role="img"
-              aria-label="Color mezclado por el jugador"
-            ></div>
-
-            <p class="color-caption" id="mixFormula">Sin mezcla todavía</p>
+            <div class="color-bowl mix-bowl" id="mixColor" role="img" aria-label="Mezcla actual">
+              <span class="empty-bowl-text" id="emptyBowlText">Agrega gotas</span>
+            </div>
+            <p class="color-name" id="mixName">Sin mezcla todavía</p>
+            <p class="color-note" id="mixAdvice">Puedes usar una gota varias veces.</p>
           </article>
         </div>
 
         <section class="palette-section" aria-labelledby="paletteTitle">
-          <div class="section-head">
-            <h3 id="paletteTitle">Pigmentos mágicos</h3>
-            <p>Selecciona los ingredientes con los que quieres construir el color.</p>
+          <div class="section-row">
+            <div>
+              <h3 id="paletteTitle">Pigmentos</h3>
+              <p>Haz clic en una gota para añadirla a la mezcla.</p>
+            </div>
+            <button class="tiny-button" id="hintBtn" type="button">Dame pista</button>
           </div>
 
-          <div class="palette" role="group" aria-label="Paleta de pigmentos">
-            <button
-              class="pigment-btn pigment-red"
-              type="button"
-              data-color="red"
-              aria-label="Agregar pigmento rojo"
-            >
-              <span class="pigment-dot" aria-hidden="true"></span>
-              <span class="pigment-text">
-                <strong>Rojo</strong>
-                <small>Calor y energía</small>
-              </span>
+          <div class="palette" id="palette" aria-label="Pigmentos disponibles">
+            <button class="pigment red" type="button" data-color="red">
+              <span class="drop"></span>
+              <strong>Rojo</strong>
+              <small>calor</small>
             </button>
-
-            <button
-              class="pigment-btn pigment-blue"
-              type="button"
-              data-color="blue"
-              aria-label="Agregar pigmento azul"
-            >
-              <span class="pigment-dot" aria-hidden="true"></span>
-              <span class="pigment-text">
-                <strong>Azul</strong>
-                <small>Agua y cielo</small>
-              </span>
+            <button class="pigment yellow" type="button" data-color="yellow">
+              <span class="drop"></span>
+              <strong>Amarillo</strong>
+              <small>luz</small>
             </button>
-
-            <button
-              class="pigment-btn pigment-yellow"
-              type="button"
-              data-color="yellow"
-              aria-label="Agregar pigmento amarillo"
-            >
-              <span class="pigment-dot" aria-hidden="true"></span>
-              <span class="pigment-text">
-                <strong>Amarillo</strong>
-                <small>Luz y brillo</small>
-              </span>
+            <button class="pigment blue" type="button" data-color="blue">
+              <span class="drop"></span>
+              <strong>Azul</strong>
+              <small>agua</small>
+            </button>
+            <button class="pigment white" type="button" data-color="white">
+              <span class="drop"></span>
+              <strong>Blanco</strong>
+              <small>suave</small>
+            </button>
+            <button class="pigment black" type="button" data-color="black">
+              <span class="drop"></span>
+              <strong>Negro</strong>
+              <small>sombra</small>
             </button>
           </div>
         </section>
 
-        <section class="mix-tray" aria-labelledby="trayTitle">
-          <div class="section-head compact">
-            <h3 id="trayTitle">Receta actual</h3>
-            <p>Estos son los pigmentos que llevas añadidos.</p>
+        <section class="recipe-tray" aria-labelledby="trayTitle">
+          <div class="section-row compact">
+            <div>
+              <h3 id="trayTitle">Receta actual</h3>
+              <p id="recipeText">Vacía</p>
+            </div>
+            <button class="tiny-button" id="undoBtn" type="button">Quitar última</button>
           </div>
-
-          <div id="mixSlots" class="mix-slots" aria-live="polite" aria-label="Ingredientes seleccionados">
-            <div class="mix-slot empty">?</div>
-            <div class="mix-slot empty">?</div>
-            <div class="mix-slot empty">?</div>
-          </div>
+          <div class="drops-tray" id="dropsTray" aria-live="polite"></div>
         </section>
 
-        <div class="actions">
-          <button id="clearBtn" class="btn btn-soft" type="button">
-            Limpiar mezcla
-          </button>
-
-          <button id="checkBtn" class="btn btn-primary" type="button">
-            Validar color
-          </button>
+        <div class="main-actions">
+          <button class="btn btn-soft" id="clearBtn" type="button">Limpiar</button>
+          <button class="btn btn-primary" id="checkBtn" type="button">Validar mezcla</button>
+          <button class="btn btn-ghost" id="nextBtn" type="button">Siguiente reto</button>
         </div>
 
-        <div
-          id="feedback"
-          class="feedback"
-          role="status"
-          aria-live="polite"
-        >
-          Empieza mezclando pigmentos para acercarte al color objetivo.
+        <div class="feedback" id="feedback" role="status" aria-live="polite">
+          Agrega gotas para empezar la mezcla.
         </div>
       </section>
 
-      <aside class="side-panel">
-        <section class="panel tips-panel" aria-labelledby="tipsTitle">
-          <div class="section-head">
-            <h2 id="tipsTitle">Guía rápida</h2>
-            <p>Pequeñas pistas para no mezclar a ciegas como alquimista sin desayuno.</p>
-          </div>
-
-          <ul class="tips-list">
-            <li>Observa bien el color objetivo antes de validar.</li>
-            <li>Prueba combinaciones distintas y descubre recetas nuevas.</li>
-            <li>Entre más te acerques, mejor será tu resultado.</li>
-          </ul>
-        </section>
-
-        <section class="panel discovered-panel" aria-labelledby="discoveredTitle">
-          <div class="section-head">
-            <h2 id="discoveredTitle">Recetas descubiertas</h2>
-            <p>Tus hallazgos cromáticos quedan guardados aquí.</p>
-          </div>
-
-          <div id="recipeList" class="recipe-list">
-            <div class="empty-state">
-              Aún no has descubierto ninguna receta mágica.
+      <aside class="side-column">
+        <section class="panel mini-panel" id="howToPanel" aria-labelledby="howToTitle">
+          <div class="panel-header small">
+            <div>
+              <p class="section-kicker">Guía rápida</p>
+              <h2 id="howToTitle">Cómo se juega</h2>
             </div>
           </div>
+          <ol class="steps-list">
+            <li>Mira el color objetivo y cuántas gotas necesita.</li>
+            <li>Agrega pigmentos en la bandeja de mezcla.</li>
+            <li>Valida. Si te equivocas, el juego te dice si faltan, sobran o cambian gotas.</li>
+            <li>Descubre recetas y sube de nivel.</li>
+          </ol>
+        </section>
+
+        <section class="panel mini-panel" aria-labelledby="recipesTitle">
+          <div class="panel-header small">
+            <div>
+              <p class="section-kicker">Colección</p>
+              <h2 id="recipesTitle">Recetas descubiertas</h2>
+            </div>
+            <span class="counter-pill" id="recipesCount">0</span>
+          </div>
+          <div class="recipe-list" id="recipeList">
+            <div class="empty-state">Aún no hay recetas descubiertas.</div>
+          </div>
+        </section>
+
+        <section class="panel mini-panel" aria-labelledby="recordsTitle">
+          <div class="panel-header small">
+            <div>
+              <p class="section-kicker">Registro</p>
+              <h2 id="recordsTitle">Mejor partida</h2>
+            </div>
+          </div>
+          <div class="record-box">
+            <span>Máximo puntaje</span>
+            <strong id="bestScoreValue">0</strong>
+          </div>
+          <button class="tiny-button danger" id="resetProgressBtn" type="button">Reiniciar progreso</button>
         </section>
       </aside>
-    </main>
-  </div>
+    </div>
+  </main>
 
-  <script type="module" src="main.js"></script>
+  <dialog class="modal" id="resultModal" aria-labelledby="modalTitle">
+    <div class="modal-card">
+      <button class="modal-close" id="modalCloseBtn" type="button" aria-label="Cerrar">×</button>
+      <p class="section-kicker">Partida terminada</p>
+      <h2 id="modalTitle">Mapa cromático restaurado</h2>
+      <p id="modalText">Lograste completar los retos.</p>
+      <div class="modal-score">
+        <span>Puntaje final</span>
+        <strong id="finalScoreValue">0</strong>
+      </div>
+      <button class="btn btn-primary" id="playAgainBtn" type="button">Jugar otra vez</button>
+    </div>
+  </dialog>
+
+  <script src="main.js" defer></script>
 </body>
 </html>

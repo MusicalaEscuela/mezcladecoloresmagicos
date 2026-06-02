@@ -1,538 +1,616 @@
-import { state } from "./game-state.js";
-import { mixColors, compareColors } from "./color-engine.js";
-import { getRandomTarget } from "./pattern-generator.js";
-import { setColor, setFeedback } from "./ui-controller.js";
-import { saveScore, getScore } from "./storage.js";
+(() => {
+  "use strict";
 
-/* =========================================================
-   DOM
-========================================================= */
+  const MAX_DROPS = 6;
+  const TOTAL_ROUNDS = 10;
+  const STORAGE_KEY = "musi_color_magic_glowup_v1";
 
-const dom = {
-  targetEl: document.getElementById("targetColor"),
-  mixEl: document.getElementById("mixColor"),
-
-  levelValueEl: document.getElementById("levelValue"),
-  scoreValueEl: document.getElementById("scoreValue"),
-  attemptsValueEl: document.getElementById("attemptsValue"),
-  recipesValueEl: document.getElementById("recipesValue"),
-
-  targetNameEl: document.getElementById("targetName"),
-  mixFormulaEl: document.getElementById("mixFormula"),
-  mixSlotsEl: document.getElementById("mixSlots"),
-  recipeListEl: document.getElementById("recipeList"),
-  missionTextEl: document.getElementById("missionText"),
-  feedbackEl: document.getElementById("feedback"),
-
-  clearBtn: document.getElementById("clearBtn"),
-  checkBtn: document.getElementById("checkBtn"),
-  newTargetBtn: document.getElementById("newTargetBtn"),
-
-  paletteButtons: [...document.querySelectorAll(".palette button[data-color]")]
-};
-
-/* =========================================================
-   CONFIG
-========================================================= */
-
-const MAX_MIX_SLOTS = 3;
-const MAX_LEVEL = 99;
-const ROUND_AUTONEXT_DELAY = 1200;
-
-const COLOR_NAMES = {
-  red: "Rojo",
-  blue: "Azul",
-  yellow: "Amarillo"
-};
-
-const TARGET_LABELS = {
-  "red+blue": "Bruma violeta",
-  "red+yellow": "Destello naranja",
-  "blue+yellow": "Verde selvático",
-  "red+blue+yellow": "Tono ancestral",
-  red: "Rojo esencial",
-  blue: "Azul profundo",
-  yellow: "Luz dorada"
-};
-
-const MISSIONS = [
-  "Musi encontró un pigmento misterioso. Observa el color objetivo e intenta recrearlo mezclando los pigmentos mágicos disponibles.",
-  "Una chispa de color se ha perdido en el laboratorio. Descubre la receta correcta para restaurarla.",
-  "La energía cromática del mundo está inestable. Mezcla con cuidado y recupera el tono faltante.",
-  "Cada mezcla acertada devuelve vida a un rincón del mapa. Encuentra la combinación más cercana posible."
-];
-
-const FEEDBACK_CLASSES = ["is-success", "is-warning", "is-error"];
-
-/* =========================================================
-   ESTADO LOCAL EXTENDIDO
-========================================================= */
-
-function normalizeState() {
-  if (!Array.isArray(state.mix)) state.mix = [];
-  if (!Array.isArray(state.targetRecipe)) state.targetRecipe = [];
-  if (!Array.isArray(state.discoveredRecipes)) state.discoveredRecipes = [];
-
-  if (!Array.isArray(state.targetColor)) state.targetColor = mixColors([]);
-  if (typeof state.level !== "number" || Number.isNaN(state.level)) state.level = 1;
-  if (typeof state.score !== "number" || Number.isNaN(state.score)) state.score = getScore();
-  if (typeof state.attempts !== "number" || Number.isNaN(state.attempts)) state.attempts = 0;
-  if (typeof state.roundResolved !== "boolean") state.roundResolved = false;
-  if (typeof state.isLocked !== "boolean") state.isLocked = false;
-}
-
-/* =========================================================
-   HELPERS
-========================================================= */
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function isRoundLocked() {
-  return state.isLocked || state.roundResolved;
-}
-
-function getRecipeKey(recipe = []) {
-  return [...recipe].sort().join("+");
-}
-
-function getPrettyRecipe(recipe = []) {
-  if (!recipe.length) return "Sin mezcla todavía";
-  return recipe.map((color) => COLOR_NAMES[color] || color).join(" + ");
-}
-
-function getTargetLabel(recipe = []) {
-  const key = getRecipeKey(recipe);
-  return TARGET_LABELS[key] || "Pigmento misterioso";
-}
-
-function getColorDistance(c1 = [], c2 = []) {
-  if (!Array.isArray(c1) || !Array.isArray(c2) || c1.length !== c2.length) {
-    return 765;
-  }
-
-  return c1.reduce((acc, value, index) => acc + Math.abs(value - c2[index]), 0);
-}
-
-function getAccuracyData(mixRgb, targetRgb) {
-  const distance = getColorDistance(mixRgb, targetRgb);
-  const maxDistance = 765;
-  const rawPercent = 100 - (distance / maxDistance) * 100;
-  const percent = clamp(Math.round(rawPercent), 0, 100);
-
-  let tier = "miss";
-  let stars = 0;
-  let message = "Todavía estás lejos. Ajusta tu mezcla e inténtalo otra vez.";
-  let feedbackClass = "is-error";
-  let points = 5;
-
-  if (distance <= 30 || compareColors(mixRgb, targetRgb)) {
-    tier = "perfect";
-    stars = 3;
-    points = 120;
-    message = "✨ ¡Perfecto! Lograste una mezcla casi exacta.";
-    feedbackClass = "is-success";
-  } else if (distance <= 90) {
-    tier = "close";
-    stars = 2;
-    points = 70;
-    message = "🌟 Muy cerca. Tu mezcla casi alcanza el color objetivo.";
-    feedbackClass = "is-warning";
-  } else if (distance <= 160) {
-    tier = "partial";
-    stars = 1;
-    points = 30;
-    message = "🪄 Vas bien, pero aún le falta precisión a la mezcla.";
-    feedbackClass = "is-warning";
-  }
-
-  return {
-    distance,
-    percent,
-    tier,
-    stars,
-    message,
-    feedbackClass,
-    points
+  const COLORS = {
+    red: { name: "Rojo", css: "#f94158", rgb: [249, 65, 88] },
+    yellow: { name: "Amarillo", css: "#ffd447", rgb: [255, 212, 71] },
+    blue: { name: "Azul", css: "#2787ff", rgb: [39, 135, 255] },
+    white: { name: "Blanco", css: "#ffffff", rgb: [255, 255, 255] },
+    black: { name: "Negro", css: "#202332", rgb: [32, 35, 50] }
   };
-}
 
-function clearFeedbackClasses() {
-  if (!dom.feedbackEl) return;
-  dom.feedbackEl.classList.remove(...FEEDBACK_CLASSES);
-}
-
-function setFeedbackState(message, stateClass = "") {
-  setFeedback(message);
-
-  if (!dom.feedbackEl) return;
-
-  clearFeedbackClasses();
-
-  if (stateClass) {
-    dom.feedbackEl.classList.add(stateClass);
-  }
-}
-
-function generateTargetRecipe() {
-  const combo = getRandomTarget();
-  return Array.isArray(combo) && combo.length ? combo : ["red", "blue"];
-}
-
-function getMissionByLevel(level) {
-  const index = (level - 1) % MISSIONS.length;
-  return MISSIONS[index];
-}
-
-/* =========================================================
-   RENDER
-========================================================= */
-
-function updateMissionText() {
-  if (!dom.missionTextEl) return;
-  dom.missionTextEl.textContent = getMissionByLevel(state.level);
-}
-
-function updateHUD() {
-  if (dom.levelValueEl) dom.levelValueEl.textContent = String(state.level);
-  if (dom.scoreValueEl) dom.scoreValueEl.textContent = String(state.score);
-  if (dom.attemptsValueEl) dom.attemptsValueEl.textContent = String(state.attempts);
-  if (dom.recipesValueEl) dom.recipesValueEl.textContent = String(state.discoveredRecipes.length);
-}
-
-function updateTargetInfo() {
-  if (!dom.targetNameEl) return;
-  dom.targetNameEl.textContent = getTargetLabel(state.targetRecipe);
-}
-
-function updateMixFormula() {
-  if (!dom.mixFormulaEl) return;
-  dom.mixFormulaEl.textContent = getPrettyRecipe(state.mix);
-}
-
-function updateButtonsState() {
-  const hasMix = state.mix.length > 0;
-  const locked = isRoundLocked();
-
-  if (dom.checkBtn) {
-    dom.checkBtn.disabled = !hasMix || locked;
-  }
-
-  if (dom.clearBtn) {
-    dom.clearBtn.disabled = !hasMix || locked;
-  }
-
-  if (dom.newTargetBtn) {
-    dom.newTargetBtn.disabled = state.isLocked;
-  }
-
-  dom.paletteButtons.forEach((button) => {
-    const paletteShouldDisable = locked || state.mix.length >= MAX_MIX_SLOTS;
-    button.disabled = paletteShouldDisable;
-  });
-}
-
-function renderMixSlots() {
-  if (!dom.mixSlotsEl) return;
-
-  const slotsMarkup = Array.from({ length: MAX_MIX_SLOTS }, (_, index) => {
-    const color = state.mix[index];
-
-    if (!color) {
-      return `<div class="mix-slot empty" aria-label="Espacio vacío">?</div>`;
-    }
-
-    const colorName = COLOR_NAMES[color] || color;
-
-    return `
-      <div class="mix-slot" title="${colorName}" aria-label="Pigmento ${colorName}">
-        ${colorName}
-      </div>
-    `;
-  }).join("");
-
-  dom.mixSlotsEl.innerHTML = slotsMarkup;
-}
-
-function renderDiscoveredRecipes() {
-  if (!dom.recipeListEl) return;
-
-  if (!state.discoveredRecipes.length) {
-    dom.recipeListEl.innerHTML = `
-      <div class="empty-state">
-        Aún no has descubierto ninguna receta mágica.
-      </div>
-    `;
-    return;
-  }
-
-  dom.recipeListEl.innerHTML = state.discoveredRecipes
-    .map((recipeKey) => {
-      const recipe = recipeKey.split("+").filter(Boolean);
-      const label = TARGET_LABELS[recipeKey] || "Receta descubierta";
-
-      return `
-        <article class="color-card">
-          <div class="card-head">
-            <h3>${label}</h3>
-            <span class="card-tag">Descubierta</span>
-          </div>
-          <p class="color-caption">${getPrettyRecipe(recipe)}</p>
-        </article>
-      `;
-    })
-    .join("");
-}
-
-function renderTargetColor() {
-  setColor(dom.targetEl, state.targetColor);
-}
-
-function renderMixColor() {
-  const rgb = mixColors(state.mix);
-  setColor(dom.mixEl, rgb);
-}
-
-function renderBoard() {
-  renderTargetColor();
-  renderMixColor();
-  updateTargetInfo();
-  updateMixFormula();
-  renderMixSlots();
-  updateButtonsState();
-}
-
-function renderAll() {
-  updateHUD();
-  updateMissionText();
-  renderDiscoveredRecipes();
-  renderBoard();
-}
-
-/* =========================================================
-   ESTADO / GAME FLOW
-========================================================= */
-
-function saveScoreState() {
-  saveScore(state.score);
-}
-
-function awardPoints(points) {
-  const safePoints = Number.isFinite(points) ? points : 0;
-  state.score += safePoints;
-  saveScoreState();
-  updateHUD();
-}
-
-function maybeLevelUp(tier) {
-  if (tier === "perfect") {
-    state.level = clamp(state.level + 1, 1, MAX_LEVEL);
-  } else if (tier === "close" && state.level < MAX_LEVEL) {
-    const bonusChance = state.attempts % 3 === 0;
-    if (bonusChance) {
-      state.level = clamp(state.level + 1, 1, MAX_LEVEL);
-    }
-  }
-
-  updateHUD();
-  updateMissionText();
-}
-
-function addDiscoveredRecipe(recipe) {
-  const key = getRecipeKey(recipe);
-  if (!key) return false;
-
-  if (!state.discoveredRecipes.includes(key)) {
-    state.discoveredRecipes.push(key);
-    state.discoveredRecipes.sort();
-    renderDiscoveredRecipes();
-    updateHUD();
-    return true;
-  }
-
-  return false;
-}
-
-function clearCurrentMix({ silent = false } = {}) {
-  state.mix = [];
-  renderMixColor();
-  updateMixFormula();
-  renderMixSlots();
-  updateButtonsState();
-
-  if (!silent) {
-    setFeedbackState("La mezcla fue limpiada. Puedes empezar una nueva combinación.");
-  }
-}
-
-function createNewRound({ silent = false } = {}) {
-  state.targetRecipe = generateTargetRecipe();
-  state.targetColor = mixColors(state.targetRecipe);
-  state.mix = [];
-  state.roundResolved = false;
-  state.isLocked = false;
-
-  renderAll();
-
-  if (!silent) {
-    setFeedbackState(
-      "Nuevo reto listo. Observa bien el color objetivo y crea tu mezcla."
-    );
-  }
-}
-
-function queueNextRound() {
-  state.isLocked = true;
-  updateButtonsState();
-
-  window.setTimeout(() => {
-    createNewRound({ silent: false });
-  }, ROUND_AUTONEXT_DELAY);
-}
-
-function validateMix() {
-  if (state.isLocked) return;
-
-  if (!state.mix.length) {
-    setFeedbackState("Primero agrega al menos un pigmento a la mezcla.", "is-error");
-    return;
-  }
-
-  state.attempts += 1;
-  updateHUD();
-
-  const mixedColor = mixColors(state.mix);
-  const accuracy = getAccuracyData(mixedColor, state.targetColor);
-  const extraText = ` Precisión aproximada: ${accuracy.percent}%.`;
-
-  if (accuracy.tier === "perfect") {
-    addDiscoveredRecipe(state.targetRecipe);
-    awardPoints(accuracy.points);
-    maybeLevelUp(accuracy.tier);
-    state.roundResolved = true;
-
-    setFeedbackState(
-      `${accuracy.message}${extraText}`,
-      accuracy.feedbackClass
-    );
-
-    queueNextRound();
-    return;
-  }
-
-  if (accuracy.tier === "close" || accuracy.tier === "partial") {
-    awardPoints(accuracy.points);
-  }
-
-  setFeedbackState(
-    `${accuracy.message}${extraText}`,
-    accuracy.feedbackClass
-  );
-
-  updateButtonsState();
-}
-
-function handlePigmentClick(color) {
-  if (!color || state.isLocked) return;
-
-  if (state.mix.length >= MAX_MIX_SLOTS) {
-    setFeedbackState(
-      `Solo puedes usar ${MAX_MIX_SLOTS} pigmentos por mezcla. Limpia o valida primero.`,
-      "is-warning"
-    );
-    return;
-  }
-
-  state.mix.push(color);
-
-  renderMixColor();
-  updateMixFormula();
-  renderMixSlots();
-  updateButtonsState();
-
-  setFeedbackState(
-    `Añadiste ${COLOR_NAMES[color] || color}. Sigue construyendo tu receta.`
-  );
-}
-
-/* =========================================================
-   EVENTS
-========================================================= */
-
-function bindPaletteEvents() {
-  dom.paletteButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      handlePigmentClick(button.dataset.color);
-    });
-  });
-}
-
-function bindActionEvents() {
-  dom.clearBtn?.addEventListener("click", () => {
-    clearCurrentMix();
-  });
-
-  dom.checkBtn?.addEventListener("click", () => {
-    validateMix();
-  });
-
-  dom.newTargetBtn?.addEventListener("click", () => {
-    if (state.isLocked) return;
-    createNewRound();
-  });
-}
-
-function bindKeyboardEvents() {
-  document.addEventListener("keydown", (event) => {
-    if (state.isLocked) return;
-
-    const key = event.key.toLowerCase();
-
-    if (key === "r") handlePigmentClick("red");
-    if (key === "b") handlePigmentClick("blue");
-    if (key === "y") handlePigmentClick("yellow");
-
-    if (key === "enter") validateMix();
-    if (key === "backspace" || key === "delete") clearCurrentMix();
-  });
-}
-
-function bindEvents() {
-  bindPaletteEvents();
-  bindActionEvents();
-  bindKeyboardEvents();
-}
-
-/* =========================================================
-   INIT
-========================================================= */
-
-function validateCriticalDOM() {
-  const required = [
-    dom.targetEl,
-    dom.mixEl,
-    dom.feedbackEl
+  const SPEECHES = {
+    start: "Vamos a recuperar el color perdido. Sin drama, con gotas.",
+    add: "Bien. Una gota más al caldero cromático.",
+    close: "Cerca. El color ya está respirando por ahí.",
+    win: "Eso quedó poderoso. Musi aprueba esta mezcla.",
+    miss: "Todavía no. El color objetivo no se va a copiar solo, tristemente.",
+    hint: "Pista entregada. Ahora el caos tiene una dirección.",
+    complete: "Mapa restaurado. La civilización cromática sobrevive otro día."
+  };
+
+  const CHALLENGES = [
+    { id: "red", name: "Rojo chispa", level: "Principiante", drops: ["red"], color: "#f94158", hint: "Un color primario caliente." },
+    { id: "yellow", name: "Luz dorada", level: "Principiante", drops: ["yellow"], color: "#ffd447", hint: "Un color primario luminoso." },
+    { id: "blue", name: "Azul río", level: "Principiante", drops: ["blue"], color: "#2787ff", hint: "Un color primario fresco." },
+    { id: "orange", name: "Naranja fogata", level: "Principiante", drops: ["red", "yellow"], color: "#ff8a3d", hint: "Nace al juntar calor y luz." },
+    { id: "green", name: "Verde bosque", level: "Principiante", drops: ["blue", "yellow"], color: "#42c86f", hint: "Mezcla cielo con luz." },
+    { id: "purple", name: "Violeta noche", level: "Principiante", drops: ["red", "blue"], color: "#8b5cf6", hint: "Se forma con energía y agua." },
+    { id: "pink", name: "Rosa nube", level: "Aprendiz", drops: ["red", "white"], color: "#ff9db2", hint: "Suaviza el rojo con claridad." },
+    { id: "sky", name: "Azul cielo", level: "Aprendiz", drops: ["blue", "white"], color: "#8ed6ff", hint: "Aclara el azul." },
+    { id: "mint", name: "Menta mágica", level: "Aprendiz", drops: ["blue", "yellow", "white"], color: "#8ceec4", hint: "Verde, pero más suave." },
+    { id: "lavender", name: "Lavanda lunar", level: "Aprendiz", drops: ["red", "blue", "white"], color: "#c9a0ff", hint: "Violeta con un toque de luz." },
+    { id: "peach", name: "Durazno suave", level: "Artista", drops: ["red", "yellow", "white", "white"], color: "#ffc28b", hint: "Naranja muy aclarado." },
+    { id: "turquoise", name: "Turquesa ola", level: "Artista", drops: ["blue", "blue", "yellow", "white"], color: "#49d7d1", hint: "Mucho azul, un poco de amarillo y luz." },
+    { id: "fuchsia", name: "Fucsia eléctrico", level: "Artista", drops: ["red", "red", "blue", "white"], color: "#f05bc7", hint: "Más rojo que azul, con brillo." },
+    { id: "olive", name: "Oliva secreto", level: "Artista", drops: ["yellow", "blue", "black"], color: "#7f8f35", hint: "Verde con sombra." },
+    { id: "sunset", name: "Atardecer", level: "Mago", drops: ["red", "yellow", "yellow", "white"], color: "#ffb45f", hint: "Naranja luminoso, con más amarillo." },
+    { id: "midnight", name: "Azul medianoche", level: "Mago", drops: ["blue", "blue", "black"], color: "#1d3f9d", hint: "Azul profundo con sombra." },
+    { id: "rosewood", name: "Madera rosa", level: "Mago", drops: ["red", "red", "yellow", "black", "white"], color: "#bd5c5f", hint: "Rojo cálido, oscuro y suavizado." },
+    { id: "jungle", name: "Selva profunda", level: "Mago", drops: ["blue", "yellow", "yellow", "black"], color: "#3f7d3c", hint: "Verde intenso con más amarillo y sombra." }
   ];
 
-  return required.every(Boolean);
-}
+  const state = {
+    current: null,
+    currentIndex: 0,
+    round: 1,
+    score: 0,
+    level: 1,
+    streak: 0,
+    mix: [],
+    discovered: [],
+    completedIds: [],
+    hintsUsed: 0,
+    hasCheckedCurrent: false,
+    bestScore: 0,
+    locked: false
+  };
 
-function init() {
-  normalizeState();
+  const dom = {
+    app: document.getElementById("app"),
+    startBtn: document.getElementById("startBtn"),
+    howToBtn: document.getElementById("howToBtn"),
+    howToPanel: document.getElementById("howToPanel"),
+    musiSpeech: document.getElementById("musiSpeech"),
+    levelValue: document.getElementById("levelValue"),
+    scoreValue: document.getElementById("scoreValue"),
+    roundValue: document.getElementById("roundValue"),
+    totalRoundsValue: document.getElementById("totalRoundsValue"),
+    streakValue: document.getElementById("streakValue"),
+    progressLabel: document.getElementById("progressLabel"),
+    progressBar: document.getElementById("progressBar"),
+    progressFill: document.getElementById("progressFill"),
+    difficultyLabel: document.getElementById("difficultyLabel"),
+    targetDropsLabel: document.getElementById("targetDropsLabel"),
+    currentDropsLabel: document.getElementById("currentDropsLabel"),
+    targetColor: document.getElementById("targetColor"),
+    mixColor: document.getElementById("mixColor"),
+    emptyBowlText: document.getElementById("emptyBowlText"),
+    targetName: document.getElementById("targetName"),
+    targetHint: document.getElementById("targetHint"),
+    mixName: document.getElementById("mixName"),
+    mixAdvice: document.getElementById("mixAdvice"),
+    palette: document.getElementById("palette"),
+    dropsTray: document.getElementById("dropsTray"),
+    recipeText: document.getElementById("recipeText"),
+    hintBtn: document.getElementById("hintBtn"),
+    undoBtn: document.getElementById("undoBtn"),
+    clearBtn: document.getElementById("clearBtn"),
+    checkBtn: document.getElementById("checkBtn"),
+    nextBtn: document.getElementById("nextBtn"),
+    feedback: document.getElementById("feedback"),
+    recipeList: document.getElementById("recipeList"),
+    recipesCount: document.getElementById("recipesCount"),
+    bestScoreValue: document.getElementById("bestScoreValue"),
+    resetProgressBtn: document.getElementById("resetProgressBtn"),
+    resultModal: document.getElementById("resultModal"),
+    modalCloseBtn: document.getElementById("modalCloseBtn"),
+    modalText: document.getElementById("modalText"),
+    finalScoreValue: document.getElementById("finalScoreValue"),
+    playAgainBtn: document.getElementById("playAgainBtn")
+  };
 
-  if (!validateCriticalDOM()) {
-    console.error("Faltan elementos esenciales del DOM para iniciar Mezcla Mágica.");
-    return;
+  function clone(value) {
+    return JSON.parse(JSON.stringify(value));
   }
 
-  bindEvents();
-  renderDiscoveredRecipes();
-  createNewRound({ silent: true });
+  function readProgress() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (error) {
+      console.warn("No se pudo leer el progreso", error);
+      return {};
+    }
+  }
 
-  setFeedbackState(
-    "Empieza mezclando pigmentos para acercarte al color objetivo."
-  );
-}
+  function saveProgress() {
+    const payload = {
+      bestScore: state.bestScore,
+      discovered: state.discovered,
+      completedIds: state.completedIds
+    };
 
-init();
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch (error) {
+      console.warn("No se pudo guardar el progreso", error);
+    }
+  }
+
+  function setSpeech(text) {
+    dom.musiSpeech.textContent = text;
+  }
+
+  function countDrops(drops) {
+    return drops.reduce((map, color) => {
+      map[color] = (map[color] || 0) + 1;
+      return map;
+    }, {});
+  }
+
+  function recipeKey(drops) {
+    return Object.entries(countDrops(drops))
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([color, count]) => `${color}:${count}`)
+      .join("|");
+  }
+
+  function recipeLabel(drops) {
+    if (!drops.length) return "Vacía";
+
+    const counts = countDrops(drops);
+    return Object.entries(counts)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([color, count]) => `${COLORS[color]?.name || color}${count > 1 ? ` x${count}` : ""}`)
+      .join(" + ");
+  }
+
+  function pluralDrops(number) {
+    return `${number} ${number === 1 ? "gota" : "gotas"}`;
+  }
+
+  function setSwatch(element, color) {
+    if (!element) return;
+    element.style.background = `linear-gradient(145deg, rgba(255,255,255,0.40), rgba(255,255,255,0.08)), ${color}`;
+    element.setAttribute("aria-label", `Color ${color}`);
+  }
+
+  function hexToRgb(hex) {
+    const clean = hex.replace("#", "");
+    return [0, 2, 4].map((start) => parseInt(clean.slice(start, start + 2), 16));
+  }
+
+  function rgbToHex(rgb) {
+    return `#${rgb.map((channel) => Math.round(channel).toString(16).padStart(2, "0")).join("")}`;
+  }
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function mixDrops(drops) {
+    if (!drops.length) return "#ffffff";
+
+    const exact = CHALLENGES.find((challenge) => recipeKey(challenge.drops) === recipeKey(drops));
+    if (exact) return exact.color;
+
+    const baseDrops = drops.filter((color) => color !== "white" && color !== "black");
+    const whites = drops.filter((color) => color === "white").length;
+    const blacks = drops.filter((color) => color === "black").length;
+    const sourceDrops = baseDrops.length ? baseDrops : drops;
+
+    let rgb = sourceDrops.reduce(
+      (acc, color) => {
+        const source = COLORS[color]?.rgb || [255, 255, 255];
+        acc[0] += source[0];
+        acc[1] += source[1];
+        acc[2] += source[2];
+        return acc;
+      },
+      [0, 0, 0]
+    ).map((channel) => channel / sourceDrops.length);
+
+    for (let index = 0; index < whites; index += 1) {
+      rgb = rgb.map((channel) => channel + (255 - channel) * 0.38);
+    }
+
+    for (let index = 0; index < blacks; index += 1) {
+      rgb = rgb.map((channel) => channel * 0.58);
+    }
+
+    return rgbToHex(rgb.map((channel) => clamp(channel, 0, 255)));
+  }
+
+  function colorDistance(hexA, hexB) {
+    const a = hexToRgb(hexA);
+    const b = hexToRgb(hexB);
+    return a.reduce((sum, channel, index) => sum + Math.abs(channel - b[index]), 0);
+  }
+
+  function getAccuracy() {
+    if (!state.current) return 0;
+    const mixColor = mixDrops(state.mix);
+    const distance = colorDistance(mixColor, state.current.color);
+    return clamp(Math.round(100 - (distance / 765) * 100), 0, 100);
+  }
+
+  function getAvailableChallenges() {
+    const completed = new Set(state.completedIds);
+    const remaining = CHALLENGES.filter((challenge) => !completed.has(challenge.id));
+    return remaining.length ? remaining : clone(CHALLENGES);
+  }
+
+  function pickChallenge() {
+    const available = getAvailableChallenges();
+    const preferredLevel = state.round <= 3
+      ? ["Principiante"]
+      : state.round <= 6
+        ? ["Principiante", "Aprendiz"]
+        : state.round <= 8
+          ? ["Aprendiz", "Artista"]
+          : ["Artista", "Mago"];
+
+    const pool = available.filter((challenge) => preferredLevel.includes(challenge.level));
+    const choices = pool.length ? pool : available;
+    return clone(choices[Math.floor(Math.random() * choices.length)]);
+  }
+
+  function updateLevel() {
+    state.level = state.round <= 3 ? 1 : state.round <= 6 ? 2 : state.round <= 8 ? 3 : 4;
+  }
+
+  function resetRoundData() {
+    state.current = pickChallenge();
+    state.mix = [];
+    state.hintsUsed = 0;
+    state.hasCheckedCurrent = false;
+    state.locked = false;
+    updateLevel();
+  }
+
+  function startGame({ keepScore = false } = {}) {
+    if (!keepScore) {
+      state.round = 1;
+      state.score = 0;
+      state.streak = 0;
+    }
+
+    resetRoundData();
+    render();
+    setFeedback("Nuevo reto listo. Mira el color objetivo y prepara la receta.", "");
+    setSpeech(SPEECHES.start);
+  }
+
+  function nextRound() {
+    if (state.round >= TOTAL_ROUNDS) {
+      finishGame();
+      return;
+    }
+
+    state.round += 1;
+    resetRoundData();
+    render();
+    setFeedback("Siguiente reto listo. El laboratorio sigue vivo.", "");
+    setSpeech("Nuevo color perdido detectado. Qué conveniente para el juego.");
+  }
+
+  function finishGame() {
+    state.bestScore = Math.max(state.bestScore, state.score);
+    saveProgress();
+    dom.finalScoreValue.textContent = String(state.score);
+    dom.modalText.textContent = `Completaste ${TOTAL_ROUNDS} retos, descubriste ${state.discovered.length} recetas y alcanzaste una racha de ${state.streak}.`;
+    setSpeech(SPEECHES.complete);
+
+    if (typeof dom.resultModal.showModal === "function") {
+      dom.resultModal.showModal();
+    } else {
+      alert(`Partida terminada. Puntaje final: ${state.score}`);
+    }
+  }
+
+  function setFeedback(message, type = "") {
+    dom.feedback.textContent = message;
+    dom.feedback.className = `feedback ${type}`.trim();
+  }
+
+  function renderHUD() {
+    const progress = Math.round(((state.round - 1) / TOTAL_ROUNDS) * 100);
+
+    dom.levelValue.textContent = String(state.level);
+    dom.scoreValue.textContent = String(state.score);
+    dom.roundValue.textContent = String(state.round);
+    dom.totalRoundsValue.textContent = String(TOTAL_ROUNDS);
+    dom.streakValue.textContent = String(state.streak);
+    dom.progressLabel.textContent = `${progress}%`;
+    dom.progressFill.style.width = `${progress}%`;
+    dom.progressBar.setAttribute("aria-valuenow", String(progress));
+    dom.bestScoreValue.textContent = String(state.bestScore);
+  }
+
+  function renderChallenge() {
+    if (!state.current) return;
+
+    setSwatch(dom.targetColor, state.current.color);
+    setSwatch(dom.mixColor, mixDrops(state.mix));
+
+    dom.difficultyLabel.textContent = state.current.level;
+    dom.targetDropsLabel.textContent = pluralDrops(state.current.drops.length);
+    dom.currentDropsLabel.textContent = pluralDrops(state.mix.length);
+    dom.targetName.textContent = state.current.name;
+    dom.targetHint.textContent = state.hintsUsed > 0 ? state.current.hint : "Mira el color y prepara tu receta.";
+    dom.mixName.textContent = state.mix.length ? "Mezcla en proceso" : "Sin mezcla todavía";
+    dom.mixAdvice.textContent = state.mix.length ? `Precisión visual aproximada: ${getAccuracy()}%.` : "Puedes usar una gota varias veces.";
+    dom.emptyBowlText.hidden = state.mix.length > 0;
+    dom.recipeText.textContent = recipeLabel(state.mix);
+  }
+
+  function renderDropsTray() {
+    if (!state.mix.length) {
+      dom.dropsTray.innerHTML = `<span class="tray-placeholder">Aún no has agregado gotas.</span>`;
+      return;
+    }
+
+    dom.dropsTray.innerHTML = state.mix
+      .map((color, index) => {
+        const label = COLORS[color]?.name || color;
+        return `<span class="drop-chip ${color}" title="Gota ${index + 1}: ${label}" aria-label="Gota ${index + 1}: ${label}"></span>`;
+      })
+      .join("");
+  }
+
+  function renderRecipes() {
+    dom.recipesCount.textContent = String(state.discovered.length);
+
+    if (!state.discovered.length) {
+      dom.recipeList.innerHTML = `<div class="empty-state">Aún no hay recetas descubiertas.</div>`;
+      return;
+    }
+
+    const known = state.discovered
+      .map((id) => CHALLENGES.find((challenge) => challenge.id === id))
+      .filter(Boolean)
+      .sort((a, b) => a.name.localeCompare(b.name, "es"));
+
+    dom.recipeList.innerHTML = known.map((recipe) => `
+      <article class="recipe-item">
+        <span class="recipe-swatch" style="background: linear-gradient(145deg, rgba(255,255,255,0.35), rgba(255,255,255,0.05)), ${recipe.color}"></span>
+        <div>
+          <strong>${recipe.name}</strong>
+          <span>${recipeLabel(recipe.drops)}</span>
+        </div>
+      </article>
+    `).join("");
+  }
+
+  function renderButtons() {
+    const hasMix = state.mix.length > 0;
+    const isMaxed = state.mix.length >= MAX_DROPS;
+
+    dom.undoBtn.disabled = !hasMix || state.locked;
+    dom.clearBtn.disabled = !hasMix || state.locked;
+    dom.checkBtn.disabled = !hasMix || state.locked;
+    dom.nextBtn.disabled = false;
+    dom.hintBtn.disabled = !state.current || state.hintsUsed >= 2 || state.locked;
+
+    dom.palette.querySelectorAll("button[data-color]").forEach((button) => {
+      button.disabled = isMaxed || state.locked;
+    });
+  }
+
+  function render() {
+    renderHUD();
+    renderChallenge();
+    renderDropsTray();
+    renderRecipes();
+    renderButtons();
+  }
+
+  function addDrop(color) {
+    if (!COLORS[color] || state.locked) return;
+
+    if (state.mix.length >= MAX_DROPS) {
+      setFeedback(`Solo puedes usar hasta ${MAX_DROPS} gotas por mezcla. Quita una o valida.`, "warning");
+      return;
+    }
+
+    state.mix.push(color);
+    render();
+    popMixBowl();
+    setFeedback(`Agregaste ${COLORS[color].name}.`, "");
+    setSpeech(SPEECHES.add);
+  }
+
+  function undoDrop() {
+    if (!state.mix.length || state.locked) return;
+    const removed = state.mix.pop();
+    render();
+    setFeedback(`Quitaste ${COLORS[removed]?.name || "una gota"}.`, "");
+  }
+
+  function clearMix() {
+    if (state.locked) return;
+    state.mix = [];
+    render();
+    setFeedback("Mezcla limpiada. Otra vez al laboratorio.", "");
+  }
+
+  function showHint() {
+    if (!state.current || state.locked) return;
+
+    state.hintsUsed += 1;
+    const counts = countDrops(state.current.drops);
+    const entries = Object.entries(counts).sort(([a], [b]) => a.localeCompare(b));
+    const firstHint = state.current.hint;
+    const secondHint = `Receta sugerida: ${entries.map(([color, count]) => `${COLORS[color].name}${count > 1 ? ` x${count}` : ""}`).join(" + ")}.`;
+
+    setFeedback(state.hintsUsed === 1 ? firstHint : secondHint, "warning");
+    setSpeech(SPEECHES.hint);
+    render();
+  }
+
+  function validateMix() {
+    if (!state.current || state.locked) return;
+
+    if (!state.mix.length) {
+      setFeedback("Primero agrega al menos una gota.", "error");
+      shake();
+      return;
+    }
+
+    const targetDrops = state.current.drops;
+    const targetKey = recipeKey(targetDrops);
+    const mixKey = recipeKey(state.mix);
+    const accuracy = getAccuracy();
+
+    state.hasCheckedCurrent = true;
+
+    if (mixKey === targetKey) {
+      const hintPenalty = state.hintsUsed * 12;
+      const streakBonus = state.streak * 8;
+      const dropsBonus = Math.max(0, 20 - Math.abs(state.mix.length - targetDrops.length) * 4);
+      const roundPoints = Math.max(45, 120 + streakBonus + dropsBonus - hintPenalty);
+
+      state.score += roundPoints;
+      state.streak += 1;
+      state.locked = true;
+      unlockRecipe(state.current.id);
+      rememberCompleted(state.current.id);
+      state.bestScore = Math.max(state.bestScore, state.score);
+      saveProgress();
+      render();
+      setFeedback(`¡Correcto! ${state.current.name} descubierto. +${roundPoints} puntos.`, "success");
+      setSpeech(SPEECHES.win);
+      celebrate();
+      window.setTimeout(() => nextRound(), 900);
+      return;
+    }
+
+    state.streak = 0;
+
+    if (state.mix.length < targetDrops.length) {
+      setFeedback(`Te faltan ${targetDrops.length - state.mix.length} ${targetDrops.length - state.mix.length === 1 ? "gota" : "gotas"}. Vas en ${accuracy}% de cercanía visual.`, "warning");
+      setSpeech(SPEECHES.close);
+    } else if (state.mix.length > targetDrops.length) {
+      setFeedback(`Te sobran ${state.mix.length - targetDrops.length} ${state.mix.length - targetDrops.length === 1 ? "gota" : "gotas"}. Limpia o quita la última para ajustar.`, "warning");
+      setSpeech(SPEECHES.miss);
+    } else {
+      const advice = compareCounts(state.mix, targetDrops);
+      setFeedback(`${advice} Cercanía visual: ${accuracy}%.`, accuracy >= 80 ? "warning" : "error");
+      setSpeech(accuracy >= 80 ? SPEECHES.close : SPEECHES.miss);
+    }
+
+    render();
+    shake();
+  }
+
+  function compareCounts(mix, target) {
+    const mixCounts = countDrops(mix);
+    const targetCounts = countDrops(target);
+    const colors = Object.keys(COLORS);
+    const missing = [];
+    const extra = [];
+
+    colors.forEach((color) => {
+      const diff = (targetCounts[color] || 0) - (mixCounts[color] || 0);
+      if (diff > 0) missing.push(`${COLORS[color].name}${diff > 1 ? ` x${diff}` : ""}`);
+      if (diff < 0) extra.push(`${COLORS[color].name}${Math.abs(diff) > 1 ? ` x${Math.abs(diff)}` : ""}`);
+    });
+
+    if (missing.length && extra.length) {
+      return `Cambia ${extra.join(", ")} por ${missing.join(", ")}.`;
+    }
+    if (missing.length) return `Falta ${missing.join(", ")}.`;
+    if (extra.length) return `Sobra ${extra.join(", ")}.`;
+    return "La receta está muy cerca, pero revisa el orden de selección.";
+  }
+
+  function unlockRecipe(id) {
+    if (!state.discovered.includes(id)) {
+      state.discovered.push(id);
+    }
+  }
+
+  function rememberCompleted(id) {
+    if (!state.completedIds.includes(id)) {
+      state.completedIds.push(id);
+    }
+  }
+
+  function popMixBowl() {
+    dom.mixColor.classList.remove("pop");
+    window.requestAnimationFrame(() => {
+      dom.mixColor.classList.add("pop");
+    });
+  }
+
+  function shake() {
+    dom.app.classList.remove("screen-shake");
+    window.requestAnimationFrame(() => dom.app.classList.add("screen-shake"));
+  }
+
+  function celebrate() {
+    const colors = ["#ff8fb4", "#ffdd65", "#23c7b7", "#7c5cff", "#2787ff"];
+    for (let index = 0; index < 24; index += 1) {
+      const dot = document.createElement("span");
+      dot.className = "confetti-dot";
+      dot.style.left = `${Math.random() * 100}%`;
+      dot.style.background = colors[index % colors.length];
+      dot.style.animationDelay = `${Math.random() * 0.18}s`;
+      document.body.appendChild(dot);
+      window.setTimeout(() => dot.remove(), 1200);
+    }
+  }
+
+  function resetSavedProgress() {
+    state.bestScore = 0;
+    state.discovered = [];
+    state.completedIds = [];
+    saveProgress();
+    render();
+    setFeedback("Progreso reiniciado. La memoria cromática quedó en blanco.", "warning");
+  }
+
+  function loadInitialProgress() {
+    const saved = readProgress();
+    state.bestScore = Number(saved.bestScore || 0);
+    state.discovered = Array.isArray(saved.discovered) ? saved.discovered.filter((id) => CHALLENGES.some((challenge) => challenge.id === id)) : [];
+    state.completedIds = Array.isArray(saved.completedIds) ? saved.completedIds.filter((id) => CHALLENGES.some((challenge) => challenge.id === id)) : [];
+  }
+
+  function bindEvents() {
+    dom.palette.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-color]");
+      if (!button) return;
+      addDrop(button.dataset.color);
+    });
+
+    dom.startBtn.addEventListener("click", () => startGame());
+    dom.howToBtn.addEventListener("click", () => dom.howToPanel.scrollIntoView({ behavior: "smooth", block: "center" }));
+    dom.hintBtn.addEventListener("click", showHint);
+    dom.undoBtn.addEventListener("click", undoDrop);
+    dom.clearBtn.addEventListener("click", clearMix);
+    dom.checkBtn.addEventListener("click", validateMix);
+    dom.nextBtn.addEventListener("click", nextRound);
+    dom.playAgainBtn.addEventListener("click", () => {
+      dom.resultModal.close();
+      startGame();
+    });
+    dom.modalCloseBtn.addEventListener("click", () => dom.resultModal.close());
+    dom.resetProgressBtn.addEventListener("click", resetSavedProgress);
+
+    document.addEventListener("keydown", (event) => {
+      const key = event.key.toLowerCase();
+      if (key === "1") addDrop("red");
+      if (key === "2") addDrop("yellow");
+      if (key === "3") addDrop("blue");
+      if (key === "4") addDrop("white");
+      if (key === "5") addDrop("black");
+      if (key === "enter") validateMix();
+      if (key === "backspace") undoDrop();
+      if (key === "escape") clearMix();
+    });
+  }
+
+  function init() {
+    loadInitialProgress();
+    bindEvents();
+    startGame();
+  }
+
+  init();
+})();
